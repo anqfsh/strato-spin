@@ -26,6 +26,12 @@ poetry config http-basic.company username password
 poetry publish --repository company
 ```
 
+Publish to PyPi
+```
+poetry config pypi-token.pypi <pypi-API-token>
+```
+
+
 ## Extending Plugins
 Create a separate project (e.g., strato_spin_examples) with custom plugins in an extensions/ directory. Example:
 ```python
@@ -35,3 +41,4 @@ from strato_spin.resources.aws.s3.s3_bucket import S3Bucket
 class CustomS3Bucket(S3Bucket):
     required_tags = ["ApplicationID", "CostCentre", "Environment", "SupportGroup"]
 ```
+

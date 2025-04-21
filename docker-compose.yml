@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  strato_spin:
+    build:
+      context: ./strato_spin
+      dockerfile: Dockerfile
+    volumes:
+      - ./strato_spin:/app/strato_spin
+    environment:
+      - AWS_DEFAULT_REGION=ap-southeast-2
+    env_file: './strato_spin/.env'
+    working_dir: /app/strato_spin
+    command: sleep infinity
+
+  strato_spin_examples:
+    build:
+      context: ./strato_spin_examples
+      dockerfile: Dockerfile
+    volumes:
+      - ./strato_spin:/app/strato_spin
+      - ./strato_spin_examples:/app/strato_spin_examples
+    environment:
+      - AWS_DEFAULT_REGION=ap-southeast-2
+    env_file: './strato_spin_examples/.env'
+    working_dir: /app/strato_spin_examples
+    command: sleep infinity

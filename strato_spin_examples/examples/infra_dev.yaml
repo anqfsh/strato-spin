@@ -1,7 +1,5 @@
 flavour: dev
-assume_roles:
-  - role_arn: arn:aws:iam::123456789012:role/DeployRole
-    session_name: DeploySession
+assume_roles: []
 azure_credentials:
   subscription_id: your-subscription-id
 gcp_credentials:
@@ -14,7 +12,7 @@ variables:
 resources:
   - type: iam_role
     platform: aws
-    name: my-kms-admin-role
+    name: strato-demo-kms-admin-role
     properties:
       role_name: KMSAdminRole
       description: Admin role for KMS key
@@ -42,11 +40,11 @@ resources:
 
   - type: kms_key
     platform: aws
-    name: my-kms-key
+    name: strato-demo-kms-key
     properties:
-      alias: alias/my-key
+      alias: alias/strato-demo-key
       description: KMS key for S3 encryption
-      admin_role_arn: ${resources.my-kms-admin-role.properties.arn}
+      admin_role_arn: ${resources.strato-demo-kms-admin-role.properties.arn}
     tags:
       Environment: ${flavour}
       Owner: team-x
@@ -56,19 +54,19 @@ resources:
 
   - type: s3_bucket
     platform: aws
-    name: my-bucket
+    name: strato-demo-bucket
     properties:
-      bucket_name: my-unique-bucket
+      bucket_name: strato-demo-unique-bucket
       region: ${variables.region}
       encryption:
-        kms_key_id: ${resources.my-kms-key.properties.key_id}
+        kms_key_id: ${resources.strato-demo-kms-key.properties.key_id}
       versioning: true
       policy:
         Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
-              AWS: "${resources.my-kms-admin-role.properties.arn}"
+              AWS: "${resources.strato-demo-kms-admin-role.properties.arn}"
             Action:
               - "s3:GetObject"
               - "s3:PutObject"
@@ -89,9 +87,9 @@ resources:
 
   - type: s3_upload
     platform: aws
-    name: my-policy-upload
+    name: strato-demo-policy-upload
     properties:
-      bucket_name: ${resources.my-bucket.properties.bucket_name}
+      bucket_name: ${resources.strato-demo-bucket.properties.bucket_name}
       source_path: ./examples/policies
       destination_key: policies/
     tags:
@@ -103,7 +101,7 @@ resources:
 
   - type: iam_role
     platform: aws
-    name: scheduler-lambda-role
+    name: strato-demo-scheduler-lambda-role
     properties:
       role_name: SchedulerLambdaRole
       description: Role for Scheduler Lambda
@@ -123,10 +121,10 @@ resources:
                 Action:
                   - "s3:GetObject"
                   - "s3:PutObject"
-                Resource: "${resources.my-bucket.properties.arn}/*"
+                Resource: "${resources.strato-demo-bucket.properties.arn}/*"
               - Effect: Allow
                 Action: "sqs:SendMessage"
-                Resource: "${resources.my-sqs.properties.arn}"
+                Resource: "${resources.strato-demo-sqs.properties.arn}"
               - Effect: Allow
                 Action:
                   - "logs:CreateLogGroup"
@@ -142,7 +140,7 @@ resources:
 
   - type: iam_role
     platform: aws
-    name: executor-lambda-role
+    name: strato-demo-executor-lambda-role
     properties:
       role_name: ExecutorLambdaRole
       description: Role for Executor Lambda
@@ -163,7 +161,7 @@ resources:
                   - "sqs:ReceiveMessage"
                   - "sqs:DeleteMessage"
                   - "sqs:GetQueueAttributes"
-                Resource: "${resources.my-sqs.properties.arn}"
+                Resource: "${resources.strato-demo-sqs.properties.arn}"
               - Effect: Allow
                 Action:
                   - "logs:CreateLogGroup"
@@ -179,9 +177,9 @@ resources:
 
   - type: sqs_queue
     platform: aws
-    name: my-sqs
+    name: strato-demo-sqs
     properties:
-      queue_name: my-queue
+      queue_name: strato-demo-queue
       delay_seconds: 10
       retention_period: 86400
       visibility_timeout: 60
@@ -194,19 +192,19 @@ resources:
 
   - type: lambda_function
     platform: aws
-    name: scheduler-lambda
+    name: strato-demo-scheduler-lambda
     properties:
       function_name: SchedulerLambda
       runtime: python3.12
       handler: index.handler
-      role_arn: ${resources.scheduler-lambda-role.properties.arn}
+      role_arn: ${resources.strato-demo-scheduler-lambda-role.properties.arn}
       source_dir: ./examples/lambda_code/scheduler
       dependency_manager: poetry
-      code_s3_bucket: ${resources.my-bucket.properties.bucket_name}
+      code_s3_bucket: ${resources.strato-demo-bucket.properties.bucket_name}
       timeout: 60
       environment:
-        BUCKET_NAME: ${resources.my-bucket.properties.bucket_name}
-        QUEUE_URL: ${resources.my-sqs.properties.url}
+        BUCKET_NAME: ${resources.strato-demo-bucket.properties.bucket_name}
+        QUEUE_URL: ${resources.strato-demo-sqs.properties.url}
       flavours:
         dev:
           memory_size: 256
@@ -219,14 +217,14 @@ resources:
 
   - type: eventbridge_rule
     platform: aws
-    name: scheduler-trigger
+    name: strato-demo-scheduler-trigger
     properties:
       rule_name: SchedulerTrigger
       schedule_expression: "rate(10 minutes)"
       state: ENABLED
       description: Trigger Scheduler Lambda every 10 minutes
       targets:
-        - Arn: ${resources.scheduler-lambda.properties.arn}
+        - Arn: ${resources.strato-demo-scheduler-lambda.properties.arn}
           Id: SchedulerLambdaTarget
     tags:
       Environment: ${flavour}
@@ -237,18 +235,18 @@ resources:
 
   - type: lambda_function
     platform: aws
-    name: executor-lambda
+    name: strato-demo-executor-lambda
     properties:
       function_name: ExecutorLambda
       runtime: python3.12
       handler: index.handler
-      role_arn: ${resources.executor-lambda-role.properties.arn}
+      role_arn: ${resources.strato-demo-executor-lambda-role.properties.arn}
       source_dir: ./examples/lambda_code/executor
       dependency_manager: poetry
-      code_s3_bucket: ${resources.my-bucket.properties.bucket_name}
+      code_s3_bucket: ${resources.strato-demo-bucket.properties.bucket_name}
       timeout: 60
       environment:
-        QUEUE_URL: ${resources.my-sqs.properties.url}
+        QUEUE_URL: ${resources.strato-demo-sqs.properties.url}
       flavours:
         dev:
           memory_size: 256
