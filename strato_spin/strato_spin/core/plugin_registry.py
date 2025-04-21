@@ -6,6 +6,13 @@ import sys
 
 logger = logging.getLogger(__name__)
 
+def find_mro_index(child_class, base_class):
+    mro = child_class.__mro__
+    for i, cls in enumerate(mro):
+        if cls == base_class:
+            return i
+    return -1
+
 class PluginRegistry:
     def __init__(self, extensions_path=None):
         self.resource_types = {}
@@ -47,7 +54,7 @@ class PluginRegistry:
                             module = import_module(f"extensions.{module_name}")
                             for attr_name in dir(module):
                                 attr = getattr(module, attr_name)
-                                if isinstance(attr, type) and issubclass(attr, BaseResource) and attr != BaseResource:
+                                if isinstance(attr, type) and issubclass(attr, BaseResource) and find_mro_index(attr, BaseResource)>1:
                                     resource_type = attr.resource_type
                                     platform = attr.platform
                                     if platform not in self.resource_types:

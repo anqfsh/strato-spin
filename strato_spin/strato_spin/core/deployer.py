@@ -32,12 +32,27 @@ class Deployer:
                 resource_class(res["name"], res["properties"], res["tags"], schema, client)
             )
 
-    def get_client(self, platform, service):
+    def _get_service_name(self, platform, resource_type):
+        service_names = {
+            "aws": {
+                "lambda_function": "lambda",
+                "s3_bucket": "s3",
+                "sqs_queue": "sqs",
+                "dynamodb_table": "dynamodb",
+                "kms_key": "kms",
+                "iam_role": "iam",
+                "s3_upload": "s3",
+                "eventbridge_rule": "cloudwatch"
+            },
+        }
+        return service_names.get(platform, {}).get(resource_type)
+
+    def get_client(self, platform, resource_type):
         if platform == "aws":
             role_chain = self.parser.infra.get("assume_roles", [])
             region = self.parser.infra.get("variables", {}).get("region", "ap-southeast-2")
             session = chain_assume_role(role_chain, region=region)
-            return ClientFactory.get_client(platform, service, session)
+            return ClientFactory.get_client(platform, self._get_service_name("aws", resource_type), session)
         elif platform == "azure":
             credentials = self.parser.infra.get("azure_credentials", {})
             return ClientFactory.get_client(platform, service, credentials)

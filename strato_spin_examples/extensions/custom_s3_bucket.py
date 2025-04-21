@@ -1,4 +1,4 @@
-from strato_spin.resources.aws.s3.s3_bucket import S3Bucket
+from strato_spin.resources.aws.s3_bucket.s3_bucket import S3Bucket
 import logging
 
 logger = logging.getLogger(__name__)

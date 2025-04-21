@@ -140,3 +140,4 @@ class Parser:
             }
         }
         return name_fields.get(platform, {}).get(resource_type)
+
