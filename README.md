@@ -12,3 +12,15 @@ A YAML-based multi-cloud infrastructure deployment tool for AWS, Azure, and GCP.
 ## Installation
 ```bash
 poetry install
+```
+
+## Usage
+```bash
+strato-spin deploy --infra examples/infra_dev.yaml --flavour dev
+```
+## Publish to Private Registry
+```bash
+poetry config repositories.company https://your-private-registry.com
+poetry config http-basic.company username password
+poetry publish --repository company
+```
