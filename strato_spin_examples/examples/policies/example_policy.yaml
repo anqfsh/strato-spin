@@ -1,0 +1,6 @@
+name: example-policy
+description: Sample policy for processing
+actions:
+  - type: tag
+    key: Processed
+    value: True

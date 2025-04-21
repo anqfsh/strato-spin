@@ -1,0 +1,260 @@
+flavour: dev
+assume_roles:
+  - role_arn: arn:aws:iam::123456789012:role/DeployRole
+    session_name: DeploySession
+azure_credentials:
+  subscription_id: your-subscription-id
+gcp_credentials:
+  project_id: your-project-id
+
+variables:
+  region: ap-southeast-2
+  account_id: 123456789012
+
+resources:
+  - type: iam_role
+    platform: aws
+    name: my-kms-admin-role
+    properties:
+      role_name: KMSAdminRole
+      description: Admin role for KMS key
+      trust_policy:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: "arn:aws:iam::${variables.account_id}:root"
+            Action: "sts:AssumeRole"
+      inline_policies:
+        - name: KMSAdminPolicy
+          policy:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: "kms:*"
+                Resource: "${self.arn}"
+    tags:
+      Environment: ${flavour}
+      Owner: team-x
+      ApplicationID: APP123
+      CostCentre: CC456
+      SupportGroup: SG789
+
+  - type: kms_key
+    platform: aws
+    name: my-kms-key
+    properties:
+      alias: alias/my-key
+      description: KMS key for S3 encryption
+      admin_role_arn: ${resources.my-kms-admin-role.properties.arn}
+    tags:
+      Environment: ${flavour}
+      Owner: team-x
+      ApplicationID: APP123
+      CostCentre: CC456
+      SupportGroup: SG789
+
+  - type: s3_bucket
+    platform: aws
+    name: my-bucket
+    properties:
+      bucket_name: my-unique-bucket
+      region: ${variables.region}
+      encryption:
+        kms_key_id: ${resources.my-kms-key.properties.key_id}
+      versioning: true
+      policy:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: "${resources.my-kms-admin-role.properties.arn}"
+            Action:
+              - "s3:GetObject"
+              - "s3:PutObject"
+            Resource: "${self.arn}/*"
+            Condition:
+              IpAddress:
+                aws:SourceIp: "203.0.113.0/24"
+          - Effect: Allow
+            Principal: "*"
+            Action: "s3:GetObject"
+            Resource: "${self.arn}/public/*"
+    tags:
+      Environment: ${flavour}
+      Owner: team-x
+      ApplicationID: APP123
+      CostCentre: CC456
+      SupportGroup: SG789
+
+  - type: s3_upload
+    platform: aws
+    name: my-policy-upload
+    properties:
+      bucket_name: ${resources.my-bucket.properties.bucket_name}
+      source_path: ./examples/policies
+      destination_key: policies/
+    tags:
+      Environment: ${flavour}
+      Owner: team-x
+      ApplicationID: APP123
+      CostCentre: CC456
+      SupportGroup: SG789
+
+  - type: iam_role
+    platform: aws
+    name: scheduler-lambda-role
+    properties:
+      role_name: SchedulerLambdaRole
+      description: Role for Scheduler Lambda
+      trust_policy:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: "lambda.amazonaws.com"
+            Action: "sts:AssumeRole"
+      inline_policies:
+        - name: SchedulerPolicy
+          policy:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "s3:GetObject"
+                  - "s3:PutObject"
+                Resource: "${resources.my-bucket.properties.arn}/*"
+              - Effect: Allow
+                Action: "sqs:SendMessage"
+                Resource: "${resources.my-sqs.properties.arn}"
+              - Effect: Allow
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource: "*"
+    tags:
+      Environment: ${flavour}
+      Owner: team-x
+      ApplicationID: APP123
+      CostCentre: CC456
+      SupportGroup: SG789
+
+  - type: iam_role
+    platform: aws
+    name: executor-lambda-role
+    properties:
+      role_name: ExecutorLambdaRole
+      description: Role for Executor Lambda
+      trust_policy:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: "lambda.amazonaws.com"
+            Action: "sts:AssumeRole"
+      inline_policies:
+        - name: ExecutorPolicy
+          policy:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "sqs:ReceiveMessage"
+                  - "sqs:DeleteMessage"
+                  - "sqs:GetQueueAttributes"
+                Resource: "${resources.my-sqs.properties.arn}"
+              - Effect: Allow
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource: "*"
+    tags:
+      Environment: ${flavour}
+      Owner: team-x
+      ApplicationID: APP123
+      CostCentre: CC456
+      SupportGroup: SG789
+
+  - type: sqs_queue
+    platform: aws
+    name: my-sqs
+    properties:
+      queue_name: my-queue
+      delay_seconds: 10
+      retention_period: 86400
+      visibility_timeout: 60
+    tags:
+      Environment: ${flavour}
+      Owner: team-x
+      ApplicationID: APP123
+      CostCentre: CC456
+      SupportGroup: SG789
+
+  - type: lambda_function
+    platform: aws
+    name: scheduler-lambda
+    properties:
+      function_name: SchedulerLambda
+      runtime: python3.12
+      handler: index.handler
+      role_arn: ${resources.scheduler-lambda-role.properties.arn}
+      source_dir: ./examples/lambda_code/scheduler
+      dependency_manager: poetry
+      code_s3_bucket: ${resources.my-bucket.properties.bucket_name}
+      timeout: 60
+      environment:
+        BUCKET_NAME: ${resources.my-bucket.properties.bucket_name}
+        QUEUE_URL: ${resources.my-sqs.properties.url}
+      flavours:
+        dev:
+          memory_size: 256
+    tags:
+      Environment: ${flavour}
+      Owner: team-x
+      ApplicationID: APP123
+      CostCentre: CC456
+      SupportGroup: SG789
+
+  - type: eventbridge_rule
+    platform: aws
+    name: scheduler-trigger
+    properties:
+      rule_name: SchedulerTrigger
+      schedule_expression: "rate(10 minutes)"
+      state: ENABLED
+      description: Trigger Scheduler Lambda every 10 minutes
+      targets:
+        - Arn: ${resources.scheduler-lambda.properties.arn}
+          Id: SchedulerLambdaTarget
+    tags:
+      Environment: ${flavour}
+      Owner: team-x
+      ApplicationID: APP123
+      CostCentre: CC456
+      SupportGroup: SG789
+
+  - type: lambda_function
+    platform: aws
+    name: executor-lambda
+    properties:
+      function_name: ExecutorLambda
+      runtime: python3.12
+      handler: index.handler
+      role_arn: ${resources.executor-lambda-role.properties.arn}
+      source_dir: ./examples/lambda_code/executor
+      dependency_manager: poetry
+      code_s3_bucket: ${resources.my-bucket.properties.bucket_name}
+      timeout: 60
+      environment:
+        QUEUE_URL: ${resources.my-sqs.properties.url}
+      flavours:
+        dev:
+          memory_size: 256
+    tags:
+      Environment: ${flavour}
+      Owner: team-x
+      ApplicationID: APP123
+      CostCentre: CC456
+      SupportGroup: SG789

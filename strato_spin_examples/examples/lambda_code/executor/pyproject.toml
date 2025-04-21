@@ -1,0 +1,12 @@
+[tool.poetry]
+name = "executor-lambda"
+version = "0.1.0"
+description = "Executor Lambda"
+authors = ["Your Name <you@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+click = ">=8.1.7"
+
+[tool.poetry.scripts]
+executor = "executor.cli:executor"

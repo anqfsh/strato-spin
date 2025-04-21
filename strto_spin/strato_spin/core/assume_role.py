@@ -6,6 +6,7 @@ logger = logging.getLogger(__name__)
 def chain_assume_role(role_chain, region="ap-southeast-2"):
     session = boto3.Session(region_name=region)
     try:
+        # Verify credentials
         sts_client = session.client("sts")
         sts_client.get_caller_identity()
         logger.info("Using default credentials from environment")

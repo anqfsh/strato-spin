@@ -1,0 +1,13 @@
+[tool.poetry]
+name = "scheduler-lambda"
+version = "0.1.0"
+description = "Scheduler Lambda"
+authors = ["Your Name <you@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+pyyaml = ">=6.0.2"
+click = ">=8.1.7"
+
+[tool.poetry.scripts]
+scheduler = "scheduler.cli:scheduler"
